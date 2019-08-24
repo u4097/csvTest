@@ -17,9 +17,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -28,12 +26,11 @@ public class AgentActivityWriterExt {
 
     public static final String DEFAULT_AGENT_ACTIVITY_QUEUE_DIR = "/Users/oleg/Project/crocotime/cvsTest/data/agent_activity_queue";
     public final static ArrayList<String> SUPPORTED_DATA_VERSIONS = Stream.of("1.0.0").collect(Collectors.toCollection(ArrayList::new));
-    private static final String DEFAULT_DATA_DIR = "/Users/oleg/Project/crocotime/cvsTest/data";
     private final static Logger log = LoggerFactory.getLogger(AgentActivityWriterExt.class);
     private Instant agentRequestUtcTime;
     private Path activityZipFile;
     private long computerAccountId;
-    private long windowActivityDataId;
+    private WindowActivityData windowActivityData;
 
     public AgentActivityWriterExt() {
     }
@@ -93,33 +90,6 @@ public class AgentActivityWriterExt {
         return zipFile.getInputStream(entry);
     }
 
-    /**
-     * Создадим csv файл для записи активности
-     *
-     * @param data данные для записи
-     * @throws IOException
-     */
-    private static void createCvs(Set<String> data) throws IOException {
-        FileWriter out = new FileWriter(DEFAULT_DATA_DIR + "/" + "activity.csv");
-
-        try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT
-                .withHeader("computer_account_id", "time", "program", "window", "url", "tab", "ui_hierarchy")
-//                .withSkipHeaderRecord()
-                .withDelimiter(';')
-                .withRecordSeparator("\r\n")
-                .withEscape('\\')
-                .withQuoteMode(QuoteMode.NONE)
-        )) {
-            data.forEach((value) -> {
-                try {
-                    printer.printRecord(value);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-        }
-
-    }
 
     /**
      * Получаем данные текущего сотрудника из манифеста (computer_account_id)
@@ -128,9 +98,10 @@ public class AgentActivityWriterExt {
      * @param agentRequestUtcTime время активности в секундах
      * @throws Exception
      */
-    public void write(Path activityZipFile, Instant agentRequestUtcTime) throws Exception {
+    public Set<String> write(Path activityZipFile, Instant agentRequestUtcTime) throws Exception {
         //Создадим cvs файл
         Set<String> data = new LinkedHashSet<>();
+        StringBuilder stringBuilder = new StringBuilder();
 
         this.activityZipFile = activityZipFile;
         this.agentRequestUtcTime = agentRequestUtcTime;
@@ -138,44 +109,60 @@ public class AgentActivityWriterExt {
         try (ZipFile zipFile = new ZipFile(activityZipFile.toFile())) {
 
             this.computerAccountId = writeUserData(zipFile);
-            this.windowActivityDataId = writeWindowData(zipFile);
+            this.windowActivityData = writeWindowData(zipFile);
+
+            List<WindowActivityData.WindowActivityElement> windowActivityElements = windowActivityData.getWindowActivityElement();
+
+            for (int i = 0; i < windowActivityElements.size(); i++) {
+                WindowActivityData.WindowActivityElement windowActivityData = windowActivityElements.get(i);
+                WindowActivityData.WindowActivity windowActivity = windowActivityData.windowActivities;
+                WindowActivityData.AppInfo appInfo = windowActivity.appInfo;
+                List<WindowActivityData.UiHierarchy> uiHierarchys = windowActivity.uiHierarchy;
+
+                //Получаем данные расширенного мониторинга из window_switching.json
+                // Время:
+                String time = windowActivityData.time.toString();
+                // Название программы:
+                String program = appInfo.program_name;
+                // Название окна:
+                String window = appInfo.window_name;
+                // Url адрес (для Web приложений)
+                String url = appInfo.url;
+                // Название вкладки:
+                String tab = appInfo.tab;
+                // строка в JSON формате, содержащая иерархию UI
+                StringBuilder sbUiHierarchy = new StringBuilder();
+                for (int j = 0; j < uiHierarchys.size(); j++) {
+                    WindowActivityData.UiHierarchy uiHierarchy = uiHierarchys.get(j);
+                    sbUiHierarchy.append(uiHierarchy.getName());
+                    sbUiHierarchy.append(uiHierarchy.getCtrl());
+                    sbUiHierarchy.append(uiHierarchy.getCls());
+                }
+
+                stringBuilder
+                        .append(computerAccountId)
+                        .append(';')
+                        .append(time)
+                        .append(';')
+                        .append(program)
+                        .append(';')
+                        .append(window)
+                        .append(';')
+                        .append(url)
+                        .append(';')
+                        .append(sbUiHierarchy)
+                        .append("\r\n");
 
 
+            }
             // Получаем computer_account_id из manifest.json
 //                    computerAccount = writeUserData(zipFile);
 //                    String computer_account_id = "5";
 
-            //Получаем данные расширенного мониторинга из window_switching.json
-            // Время:
-            String time = "1234567";
-            // Название программы:
-            String program = "program";
-            // Название окна:
-            String window = "Window Title";
-            // Url адрес (для Web приложений)
-            String url = "http://google.com";
-            // Название вкладки:
-            String tab = "Tab Title";
-            // строка в JSON формате, содержащая иерархию UI
-            String ui_hierarchy = "{ui hierarchy}";
-
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder
-                    .append(String.valueOf(computerAccountId))
-                    .append(';')
-                    .append(time)
-                    .append(';')
-                    .append(program)
-                    .append(';')
-                    .append(window)
-                    .append(';')
-                    .append(url)
-                    .append(';')
-                    .append(ui_hierarchy);
 
             data.add(stringBuilder.toString());
 
-            createCvs(data);
+//            createCvs(data);
 
             try {
                 zipFile.close();
@@ -187,6 +174,7 @@ public class AgentActivityWriterExt {
 //            throw MonitoringExceptionBuilder.buildAgentDataException(e);
         }
 
+        return data;
     }
 
     private Long writeUserData(ZipFile zipFile) throws Exception {
@@ -207,7 +195,7 @@ public class AgentActivityWriterExt {
         return 1L;
     }
 
-    private Long writeWindowData(ZipFile zipFile) throws Exception {
+    private WindowActivityData writeWindowData(ZipFile zipFile) throws Exception {
         WindowActivityData windowActivityData = null;
         try (InputStream stream = buildZipStream(zipFile, WindowActivityData.FILE_NAME)) {
             windowActivityData = WindowActivityData.build(new JSONParser(JSONParser.DEFAULT_PERMISSIVE_MODE).parse(stream));
@@ -215,7 +203,7 @@ public class AgentActivityWriterExt {
             throw new Exception(e);
         }
 
-        return 1L;
+        return windowActivityData;
     }
 
     private static class WinRecord {

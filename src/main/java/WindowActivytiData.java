@@ -22,6 +22,11 @@ class WindowActivityData {
         return new WindowActivityData(WindowActivityElement.build(jsonArray));
     }
 
+
+    public List<WindowActivityElement> getWindowActivityElement() {
+        return windowActivityElement;
+    }
+
     static <T> T getRequiredValueOf(String name, Class<T> clazz, JSONObject obj) throws Exception {
         T value = getValueOf(name, clazz, obj);
         checkRequired(name, value);
@@ -147,6 +152,18 @@ class WindowActivityData {
             this.ctrl = window;
             this.cls = url;
 
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getCtrl() {
+            return ctrl;
+        }
+
+        public String getCls() {
+            return cls;
         }
 
         static List<UiHierarchy> build(JSONArray obj) throws Exception {

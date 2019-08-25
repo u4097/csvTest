@@ -15,9 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -98,10 +96,8 @@ public class AgentActivityWriterExt {
      * @param agentRequestUtcTime время активности в секундах
      * @throws Exception
      */
-    public StringBuilder  write(Path activityZipFile, Instant agentRequestUtcTime) throws Exception {
-        //Создадим cvs файл
-        Set<String> data = new LinkedHashSet<>();
-        StringBuilder stringBuilder = new StringBuilder();
+    public StringBuilder write(Path activityZipFile, Instant agentRequestUtcTime) throws Exception {
+        StringBuilder sbCSVData = new StringBuilder();
 
         this.activityZipFile = activityZipFile;
         this.agentRequestUtcTime = agentRequestUtcTime;
@@ -130,9 +126,9 @@ public class AgentActivityWriterExt {
                 // Название вкладки:
                 String tab = appInfo.tab;
                 // строка в JSON формате, содержащая иерархию UI
-                String uiHierarchys = windowActivity.uiHierarchyJson;
+                String uiHierarchy = windowActivity.uiHierarchyJson;
 
-                stringBuilder
+                sbCSVData
                         .append(computerAccountId)
                         .append(';')
                         .append(time)
@@ -143,19 +139,9 @@ public class AgentActivityWriterExt {
                         .append(';')
                         .append(url)
                         .append(';')
-                        .append(uiHierarchys)
+                        .append(uiHierarchy)
                         .append("\r\n");
-
-
             }
-            // Получаем computer_account_id из manifest.json
-//                    computerAccount = writeUserData(zipFile);
-//                    String computer_account_id = "5";
-
-
-//            data.add(stringBuilder.toString());
-
-//            createCvs(data);
 
             try {
                 zipFile.close();
@@ -167,7 +153,7 @@ public class AgentActivityWriterExt {
 //            throw MonitoringExceptionBuilder.buildAgentDataException(e);
         }
 
-        return stringBuilder;
+        return sbCSVData;
     }
 
     private Long writeUserData(ZipFile zipFile) throws Exception {
@@ -201,7 +187,6 @@ public class AgentActivityWriterExt {
 
     private static class WinRecord {
 
-        int computerAccountId;
         long time;
         String program;
         String window;

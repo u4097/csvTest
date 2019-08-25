@@ -5,13 +5,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Set;
 
 public class CSVLoadData {
 
     private static final String DEFAULT_DATA_DIR = "/Users/oleg/Project/crocotime/cvsTest/data";
     private static AgentActivityWriterExt activityWriter;
-    private static Set<String> dataFile;
     private static StringBuilder sbDataFile;
     private static String CSVFileName;
 

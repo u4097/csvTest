@@ -22,11 +22,6 @@ class WindowActivityData {
         return new WindowActivityData(WindowActivityElement.build(jsonArray));
     }
 
-
-    public List<WindowActivityElement> getWindowActivityElement() {
-        return windowActivityElement;
-    }
-
     static <T> T getRequiredValueOf(String name, Class<T> clazz, JSONObject obj) throws Exception {
         T value = getValueOf(name, clazz, obj);
         checkRequired(name, value);
@@ -60,28 +55,51 @@ class WindowActivityData {
     static void checkInstanceOf(String name, Class<?> clazz, Object object) throws Exception {
     }
 
+    public List<WindowActivityElement> getWindowActivityElement() {
+        return windowActivityElement;
+    }
+
     public static class WindowActivity {
 
         final AppInfo appInfo;
-        final List<UiHierarchy> uiHierarchy;
+        //        final List<UiHierarchy> uiHierarchy;
+        final String uiHierarchyJson;
 
 
+/*
         WindowActivity(AppInfo appInfo, List<UiHierarchy> uiHierarchy) {
             this.appInfo = appInfo;
             this.uiHierarchy = uiHierarchy;
+
+        }
+*/
+
+        WindowActivity(AppInfo appInfo, String uiHierarchyJson) {
+            this.appInfo = appInfo;
+            this.uiHierarchyJson = uiHierarchyJson;
 
         }
 
         static WindowActivity build(JSONObject obj) throws Exception {
             return new WindowActivity(
                     AppInfo.build((JSONObject) obj.get("app_info")),
-                    UiHierarchy.build((JSONArray) obj.get("ui_hierarchy")));
+                    UiHierarchy.buildJson((JSONArray) obj.get("ui_hierarchy")));
         }
 
+/*
+        static WindowActivity build(JSONObject obj) throws Exception {
+            return new WindowActivity(
+                    AppInfo.build((JSONObject) obj.get("app_info")),
+                    UiHierarchy.build((JSONArray) obj.get("ui_hierarchy")));
+        }
+*/
 
+
+/*
         public static WindowActivity build(AppInfo appInfo, List<UiHierarchy> uiHierarchy) throws Exception {
             return new WindowActivity(appInfo, uiHierarchy);
         }
+*/
     }
 
     public static class WindowActivityElement {
@@ -154,18 +172,6 @@ class WindowActivityData {
 
         }
 
-        public String getName() {
-            return name;
-        }
-
-        public String getCtrl() {
-            return ctrl;
-        }
-
-        public String getCls() {
-            return cls;
-        }
-
         static List<UiHierarchy> build(JSONArray obj) throws Exception {
             List<UiHierarchy> uiHierarchies = new ArrayList<>();
 
@@ -176,14 +182,28 @@ class WindowActivityData {
                                 getValueOf("ctrl", String.class, (JSONObject) obj.get(i)),
                                 getValueOf("cls", String.class, (JSONObject) obj.get(i))
                         ));
-
             }
             return uiHierarchies;
         }
 
+        static String buildJson(JSONArray obj) {
+            return obj.toJSONString();
+        }
 
         public static UiHierarchy build(String program, String window, String url) throws Exception {
             return new UiHierarchy(program, window, url);
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getCtrl() {
+            return ctrl;
+        }
+
+        public String getCls() {
+            return cls;
         }
     }
 

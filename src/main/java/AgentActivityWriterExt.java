@@ -2,9 +2,6 @@ import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
-import org.apache.commons.csv.QuoteMode;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +14,10 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -98,7 +98,7 @@ public class AgentActivityWriterExt {
      * @param agentRequestUtcTime время активности в секундах
      * @throws Exception
      */
-    public Set<String> write(Path activityZipFile, Instant agentRequestUtcTime) throws Exception {
+    public StringBuilder  write(Path activityZipFile, Instant agentRequestUtcTime) throws Exception {
         //Создадим cvs файл
         Set<String> data = new LinkedHashSet<>();
         StringBuilder stringBuilder = new StringBuilder();
@@ -117,7 +117,6 @@ public class AgentActivityWriterExt {
                 WindowActivityData.WindowActivityElement windowActivityData = windowActivityElements.get(i);
                 WindowActivityData.WindowActivity windowActivity = windowActivityData.windowActivities;
                 WindowActivityData.AppInfo appInfo = windowActivity.appInfo;
-                List<WindowActivityData.UiHierarchy> uiHierarchys = windowActivity.uiHierarchy;
 
                 //Получаем данные расширенного мониторинга из window_switching.json
                 // Время:
@@ -131,13 +130,7 @@ public class AgentActivityWriterExt {
                 // Название вкладки:
                 String tab = appInfo.tab;
                 // строка в JSON формате, содержащая иерархию UI
-                StringBuilder sbUiHierarchy = new StringBuilder();
-                for (int j = 0; j < uiHierarchys.size(); j++) {
-                    WindowActivityData.UiHierarchy uiHierarchy = uiHierarchys.get(j);
-                    sbUiHierarchy.append(uiHierarchy.getName());
-                    sbUiHierarchy.append(uiHierarchy.getCtrl());
-                    sbUiHierarchy.append(uiHierarchy.getCls());
-                }
+                String uiHierarchys = windowActivity.uiHierarchyJson;
 
                 stringBuilder
                         .append(computerAccountId)
@@ -150,7 +143,7 @@ public class AgentActivityWriterExt {
                         .append(';')
                         .append(url)
                         .append(';')
-                        .append(sbUiHierarchy)
+                        .append(uiHierarchys)
                         .append("\r\n");
 
 
@@ -160,7 +153,7 @@ public class AgentActivityWriterExt {
 //                    String computer_account_id = "5";
 
 
-            data.add(stringBuilder.toString());
+//            data.add(stringBuilder.toString());
 
 //            createCvs(data);
 
@@ -174,7 +167,7 @@ public class AgentActivityWriterExt {
 //            throw MonitoringExceptionBuilder.buildAgentDataException(e);
         }
 
-        return data;
+        return stringBuilder;
     }
 
     private Long writeUserData(ZipFile zipFile) throws Exception {

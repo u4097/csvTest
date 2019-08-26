@@ -33,62 +33,6 @@ public class AgentActivityWriterExt {
     public AgentActivityWriterExt() {
     }
 
-    private static void convertRecord(CsvRecord source, WinRecord destination, Supplier<Path> filePathSupplier) throws Exception {
-        checkCellCountIntoRow(AgentDataManifest.WindowSwitchingCsv.COLUMN_COUNT, source, filePathSupplier);
-
-        destination.time = convertCellToLong(AgentDataManifest.WindowSwitchingCsv.COLUMN_TIME, source, filePathSupplier);
-        if (destination.time < 0) {
-//            throw MonitoringExceptionBuilder.buildAgentDataException("Time less than 0", source);
-        }
-
-        destination.program = StringUtils.stripToNull(source.get(AgentDataManifest.WindowSwitchingCsv.COLUMN_PROGRAM));
-        destination.window = StringUtils.stripToNull(source.get(AgentDataManifest.WindowSwitchingCsv.COLUMN_WINDOW));
-        destination.url = UrlUtils.trimBrowserUrl(source.get(AgentDataManifest.WindowSwitchingCsv.COLUMN_URL));
-        destination.uiHierarchy = StringUtils.stripToNull(source.get(AgentDataManifest.WindowSwitchingCsv.COLUMN_UI_HIERARCHY));
-
-        if (destination.program == null && (destination.window != null || destination.url != null || destination.uiHierarchy != null)) {
-//            throw MonitoringExceptionBuilder.Csv.emptyValue(AgentDataManifest.WindowSwitchingCsv.COLUMN_PROGRAM, filePathSupplier.get(), source);
-        }
-    }
-
-    private static long convertCellToLong(int columnNumber, CsvRecord row, Supplier<Path> filePathSupplier) throws Exception {
-        try {
-            return Long.parseLong(row.get(columnNumber));
-        } catch (NumberFormatException e) {
-//            throw MonitoringExceptionBuilder.Csv.invalidTypeValue(columnNumber, e, filePathSupplier.get(), row);
-            throw new Exception();
-        }
-    }
-
-    private static void checkCellCountIntoRow(int expectedCount, CsvRecord row, Supplier<Path> filePathSupplier) throws Exception {
-        if (row.size() != expectedCount) {
-//            throw MonitoringExceptionBuilder.Csv.notEnoughCellCount(filePathSupplier.get(), row);
-        }
-    }
-
-    private static CsvParser buildCsvParser(ZipFile zipFile, String csvFileName) throws IOException {
-        Reader reader = new BufferedReader(new InputStreamReader(buildZipStream(zipFile, csvFileName), StandardCharsets.UTF_8));
-
-        try {
-            return new CsvParser(reader, CsvSettings.DEFAULT);
-        } catch (Throwable e) {
-            try {
-                reader.close();
-            } catch (IOException ignore) {
-            }
-            throw e;
-        }
-    }
-
-    private static InputStream buildZipStream(ZipFile zipFile, String fileName) throws IOException {
-        ZipArchiveEntry entry = zipFile.getEntry(fileName);
-        if (entry == null) {
-            throw new FileNotFoundException(fileName);
-        }
-        return zipFile.getInputStream(entry);
-    }
-
-
     /**
      * Получаем данные текущего сотрудника из манифеста (computer_account_id)
      *
@@ -197,6 +141,61 @@ public class AgentActivityWriterExt {
         boolean isEnd() {
             return program == null && window == null && url == null && uiHierarchy == null;
         }
+    }
+
+    private static void convertRecord(CsvRecord source, WinRecord destination, Supplier<Path> filePathSupplier) throws Exception {
+        checkCellCountIntoRow(AgentDataManifest.WindowSwitchingCsv.COLUMN_COUNT, source, filePathSupplier);
+
+        destination.time = convertCellToLong(AgentDataManifest.WindowSwitchingCsv.COLUMN_TIME, source, filePathSupplier);
+        if (destination.time < 0) {
+//            throw MonitoringExceptionBuilder.buildAgentDataException("Time less than 0", source);
+        }
+
+        destination.program = StringUtils.stripToNull(source.get(AgentDataManifest.WindowSwitchingCsv.COLUMN_PROGRAM));
+        destination.window = StringUtils.stripToNull(source.get(AgentDataManifest.WindowSwitchingCsv.COLUMN_WINDOW));
+        destination.url = UrlUtils.trimBrowserUrl(source.get(AgentDataManifest.WindowSwitchingCsv.COLUMN_URL));
+        destination.uiHierarchy = StringUtils.stripToNull(source.get(AgentDataManifest.WindowSwitchingCsv.COLUMN_UI_HIERARCHY));
+
+        if (destination.program == null && (destination.window != null || destination.url != null || destination.uiHierarchy != null)) {
+//            throw MonitoringExceptionBuilder.Csv.emptyValue(AgentDataManifest.WindowSwitchingCsv.COLUMN_PROGRAM, filePathSupplier.get(), source);
+        }
+    }
+
+    private static long convertCellToLong(int columnNumber, CsvRecord row, Supplier<Path> filePathSupplier) throws Exception {
+        try {
+            return Long.parseLong(row.get(columnNumber));
+        } catch (NumberFormatException e) {
+//            throw MonitoringExceptionBuilder.Csv.invalidTypeValue(columnNumber, e, filePathSupplier.get(), row);
+            throw new Exception();
+        }
+    }
+
+    private static void checkCellCountIntoRow(int expectedCount, CsvRecord row, Supplier<Path> filePathSupplier) throws Exception {
+        if (row.size() != expectedCount) {
+//            throw MonitoringExceptionBuilder.Csv.notEnoughCellCount(filePathSupplier.get(), row);
+        }
+    }
+
+    private static CsvParser buildCsvParser(ZipFile zipFile, String csvFileName) throws IOException {
+        Reader reader = new BufferedReader(new InputStreamReader(buildZipStream(zipFile, csvFileName), StandardCharsets.UTF_8));
+
+        try {
+            return new CsvParser(reader, CsvSettings.DEFAULT);
+        } catch (Throwable e) {
+            try {
+                reader.close();
+            } catch (IOException ignore) {
+            }
+            throw e;
+        }
+    }
+
+    private static InputStream buildZipStream(ZipFile zipFile, String fileName) throws IOException {
+        ZipArchiveEntry entry = zipFile.getEntry(fileName);
+        if (entry == null) {
+            throw new FileNotFoundException(fileName);
+        }
+        return zipFile.getInputStream(entry);
     }
 
 }

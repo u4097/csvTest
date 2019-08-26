@@ -14,7 +14,7 @@ import java.util.Iterator;
 public class AgentActivityFileWorkerExt {
 
     public static final String CORRUPTED_FILE_DOT_EXTENSION = ".corrupted";
-    public static final int MAX_SORTED_DIR_COUNT = 10;
+    public static final int MAX_SORTED_DIR_COUNT = 2;
     private static final String FILE_EXTENSION = "zip";
     private static final String FILE_DOT_EXTENSION = "." + FILE_EXTENSION;
     private static final Comparator<Path> SORTING_COMPARATOR = Comparator.comparing(Path::getFileName);
@@ -26,26 +26,46 @@ public class AgentActivityFileWorkerExt {
     };
     private final Path activityQueueDir;
 
+    public void forEachFile(Action action) throws Exception {
+        try {
+            ArrayList<Path> paths = new ArrayList<>();
+            boolean isMore;
+            Path dir = null;
+            do {
+                isMore = getFirstDirectories(activityQueueDir, paths, MAX_SORTED_DIR_COUNT, dir) != 0;
+                String activityStartTime = parseActivityTime(paths.get(0));
+                String activityEndTime = parseActivityTime(paths.get(paths.size() - 1));
+                String activityTime = activityStartTime + "-" + activityEndTime;
+                for (int i = 0; i < paths.size(); ++i) {
+                    dir = paths.get(i);
+
+                    try (DirectoryStream<Path> fileStream = Files.newDirectoryStream(dir, FILE_FILTER)) {
+                        for (Path filePath : fileStream) {
+                            ActionResult result = action.apply(filePath, parseTime(filePath), activityTime);
+                            if (result.markFileAsCorrupted) {
+                                try {
+                                    Path newPath = filePath.resolveSibling(filePath.getFileName().toString() + CORRUPTED_FILE_DOT_EXTENSION);
+                                    Files.move(filePath, newPath);
+                                } catch (FileAlreadyExistsException ignore) {
+                                    Path newPath = Files.createTempFile(filePath.getParent(), filePath.getFileName().toString() + ".", CORRUPTED_FILE_DOT_EXTENSION);
+                                    Files.move(filePath, newPath, StandardCopyOption.REPLACE_EXISTING);
+                                }
+                            }
+
+                            if (result.interrupt) {
+                                return;
+                            }
+                        }
+                    }
+                }
+            } while (isMore);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+    }
+
     public AgentActivityFileWorkerExt(Path activityQueueDir) {
         this.activityQueueDir = activityQueueDir;
-    }
-
-    private static String parseActivityTime(Path filePath) {
-        return filePath.getFileName().toString();
-    }
-
-    private static Instant parseTime(Path filePath) {
-        String name = FilenameUtils.getBaseName(filePath.getFileName().toString());
-        int beginPos = name.lastIndexOf('_');
-        if (beginPos == -1) {
-            return null;
-        }
-
-        try {
-            return Instant.ofEpochMilli(Long.parseLong(name.substring(++beginPos)));
-        } catch (NumberFormatException ignore) {
-            return null;
-        }
     }
 
     private static int getFirstDirectories(Path activityQueueDir, ArrayList<Path> paths, int maxCount, Path start) throws IOException {
@@ -178,43 +198,6 @@ public class AgentActivityFileWorkerExt {
         }
     }
 
-    public void forEachFile(Action action) throws Exception {
-        try {
-            ArrayList<Path> paths = new ArrayList<>();
-            boolean isMore;
-            Path dir = null;
-            do {
-                isMore = getFirstDirectories(activityQueueDir, paths, MAX_SORTED_DIR_COUNT, dir) != 0;
-                String activityStartTime = parseActivityTime(paths.get(0));
-                String activityEndTime = parseActivityTime(paths.get(paths.size()-1));
-                String activityTime = activityStartTime + "-" + activityEndTime;
-                for (int i = 0; i < paths.size(); ++i) {
-                    dir = paths.get(i);
-
-                    try (DirectoryStream<Path> fileStream = Files.newDirectoryStream(dir, FILE_FILTER)) {
-                        for (Path filePath : fileStream) {
-                            ActionResult result = action.apply(filePath, parseTime(filePath), activityTime);
-                            if (result.markFileAsCorrupted) {
-                                try {
-                                    Path newPath = filePath.resolveSibling(filePath.getFileName().toString() + CORRUPTED_FILE_DOT_EXTENSION);
-                                    Files.move(filePath, newPath);
-                                } catch (FileAlreadyExistsException ignore) {
-                                    Path newPath = Files.createTempFile(filePath.getParent(), filePath.getFileName().toString() + ".", CORRUPTED_FILE_DOT_EXTENSION);
-                                    Files.move(filePath, newPath, StandardCopyOption.REPLACE_EXISTING);
-                                }
-                            }
-
-                            if (result.interrupt) {
-                                return;
-                            }
-                        }
-                    }
-                }
-            } while (isMore);
-        } catch (Exception e) {
-            System.out.println(e);
-        }
-    }
 
     public Path createTempFile() throws IOException {
         return Files.createTempFile(activityQueueDir, "temp_", ".tmp");
@@ -238,4 +221,23 @@ public class AgentActivityFileWorkerExt {
             this.markFileAsCorrupted = markFileAsCorrupted;
         }
     }
+
+    private static String parseActivityTime(Path filePath) {
+        return filePath.getFileName().toString();
+    }
+
+    private static Instant parseTime(Path filePath) {
+        String name = FilenameUtils.getBaseName(filePath.getFileName().toString());
+        int beginPos = name.lastIndexOf('_');
+        if (beginPos == -1) {
+            return null;
+        }
+
+        try {
+            return Instant.ofEpochMilli(Long.parseLong(name.substring(++beginPos)));
+        } catch (NumberFormatException ignore) {
+            return null;
+        }
+    }
+
 }

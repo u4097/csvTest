@@ -1,6 +1,9 @@
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.Duration;
 import java.time.Instant;
@@ -13,20 +16,28 @@ import java.util.Iterator;
 
 public class AgentActivityFileWorkerExt {
 
+    private static final String DEFAULT_DATA_DIR = "/Users/oleg/Project/crocotime/csvTest/data";
     public static final String CORRUPTED_FILE_DOT_EXTENSION = ".corrupted";
     public static final int MAX_SORTED_DIR_COUNT = 2;
     private static final String FILE_EXTENSION = "zip";
     private static final String FILE_DOT_EXTENSION = "." + FILE_EXTENSION;
     private static final Comparator<Path> SORTING_COMPARATOR = Comparator.comparing(Path::getFileName);
+    private final Path activityQueueDir;
+    private final StringBuilder sbFileData = new StringBuilder();
+
+    public AgentActivityFileWorkerExt(Path activityQueueDir) {
+        this.activityQueueDir = activityQueueDir;
+    }
+
     private static final DirectoryStream.Filter<Path> FILE_FILTER = new DirectoryStream.Filter<Path>() {
         @Override
         public boolean accept(Path entry) {
             return !Files.isDirectory(entry) && entry.toString().endsWith(FILE_DOT_EXTENSION);
         }
     };
-    private final Path activityQueueDir;
 
     public void forEachFile(Action action) throws Exception {
+        String csvFileName;
         try {
             ArrayList<Path> paths = new ArrayList<>();
             boolean isMore;
@@ -35,13 +46,13 @@ public class AgentActivityFileWorkerExt {
                 isMore = getFirstDirectories(activityQueueDir, paths, MAX_SORTED_DIR_COUNT, dir) != 0;
                 String activityStartTime = parseActivityTime(paths.get(0));
                 String activityEndTime = parseActivityTime(paths.get(paths.size() - 1));
-                String activityTime = activityStartTime + "-" + activityEndTime;
+                csvFileName = activityStartTime + "-" + activityEndTime;
                 for (int i = 0; i < paths.size(); ++i) {
                     dir = paths.get(i);
 
                     try (DirectoryStream<Path> fileStream = Files.newDirectoryStream(dir, FILE_FILTER)) {
                         for (Path filePath : fileStream) {
-                            ActionResult result = action.apply(filePath, parseTime(filePath), activityTime);
+                            ActionResult result = action.apply(filePath, parseTime(filePath), csvFileName);
                             if (result.markFileAsCorrupted) {
                                 try {
                                     Path newPath = filePath.resolveSibling(filePath.getFileName().toString() + CORRUPTED_FILE_DOT_EXTENSION);
@@ -55,8 +66,18 @@ public class AgentActivityFileWorkerExt {
                             if (result.interrupt) {
                                 return;
                             }
+                            // Сохраняем обработанные данные
+                            sbFileData.append(result.fileData);
                         }
                     }
+                }
+                // Записываем данные в файл:
+                try {
+                    createCvs(sbFileData, csvFileName);
+                    // Очищаем данные
+                    sbFileData.setLength(0);
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
             } while (isMore);
         } catch (Exception e) {
@@ -64,9 +85,27 @@ public class AgentActivityFileWorkerExt {
         }
     }
 
-    public AgentActivityFileWorkerExt(Path activityQueueDir) {
-        this.activityQueueDir = activityQueueDir;
+    @FunctionalInterface
+    public interface Action {
+
+        ActionResult apply(Path zipFilePath, Instant agentRequestUtcTime, String dirTime);
     }
+
+    public static class ActionResult {
+
+        public static final ActionResult CONTINUE = new ActionResult(false, false, null);
+
+        public final boolean interrupt;
+        public final boolean markFileAsCorrupted;
+        final StringBuilder fileData;
+
+        public ActionResult(boolean interrupt, boolean markFileAsCorrupted, StringBuilder fileData) {
+            this.interrupt = interrupt;
+            this.markFileAsCorrupted = markFileAsCorrupted;
+            this.fileData = fileData;
+        }
+    }
+
 
     private static int getFirstDirectories(Path activityQueueDir, ArrayList<Path> paths, int maxCount, Path start) throws IOException {
         paths.clear();
@@ -203,24 +242,6 @@ public class AgentActivityFileWorkerExt {
         return Files.createTempFile(activityQueueDir, "temp_", ".tmp");
     }
 
-    @FunctionalInterface
-    public interface Action {
-
-        ActionResult apply(Path zipFilePath, Instant agentRequestUtcTime, String dirTime);
-    }
-
-    public static class ActionResult {
-
-        public static final ActionResult CONTINUE = new ActionResult(false, false);
-
-        public final boolean interrupt;
-        public final boolean markFileAsCorrupted;
-
-        public ActionResult(boolean interrupt, boolean markFileAsCorrupted) {
-            this.interrupt = interrupt;
-            this.markFileAsCorrupted = markFileAsCorrupted;
-        }
-    }
 
     private static String parseActivityTime(Path filePath) {
         return filePath.getFileName().toString();
@@ -238,6 +259,23 @@ public class AgentActivityFileWorkerExt {
         } catch (NumberFormatException ignore) {
             return null;
         }
+    }
+
+    /**
+     * Создадим csv файл для записи активности
+     *
+     * @param data данные для записи
+     * @throws IOException
+     */
+    private static void createCvs(StringBuilder data, String fileName) throws IOException {
+        File file = new File(DEFAULT_DATA_DIR + "/" + fileName + ".csv");
+
+        try {
+            FileUtils.writeStringToFile(file, data.toString(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
 }

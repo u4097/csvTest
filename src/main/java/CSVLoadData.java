@@ -8,10 +8,8 @@ import java.nio.file.Paths;
 
 public class CSVLoadData {
 
-    private static final String DEFAULT_DATA_DIR = "/Users/oleg/Project/crocotime/csvTest/data";
     private static AgentActivityWriterExt activityWriter;
     private static StringBuilder sbDataFile;
-    private static String CSVFileName;
 
 
     public static void main(String[] args) {
@@ -23,43 +21,22 @@ public class CSVLoadData {
 
         try {
             fileWorkerExt.forEachFile((zipFilePath, agentRequestUtcTime, dirTime) -> {
-                CSVFileName = dirTime;
                 try {
                     sbDataFile.append(activityWriter.write(zipFilePath, agentRequestUtcTime));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
 
-                return AgentActivityFileWorkerExt.ActionResult.CONTINUE;
+                return new AgentActivityFileWorkerExt.ActionResult(false, false, sbDataFile);
+//                return AgentActivityFileWorkerExt.ActionResult.CONTINUE;
             });
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        try {
-            createCvs(sbDataFile, CSVFileName);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
     }
 
 
-    /**
-     * Создадим csv файл для записи активности
-     *
-     * @param data данные для записи
-     * @throws IOException
-     */
-    private static void createCvs(StringBuilder data, String fileName) throws IOException {
-        File file = new File(DEFAULT_DATA_DIR + "/" + fileName + ".csv");
-
-        try {
-            FileUtils.writeStringToFile(file, data.toString(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
 
 }

@@ -8,7 +8,7 @@ import java.nio.file.Paths;
 
 public class CSVLoadData {
 
-    private static final String DEFAULT_DATA_DIR = "/Users/oleg/Project/crocotime/cvsTest/data";
+    private static final String DEFAULT_DATA_DIR = "/Users/oleg/Project/crocotime/csvTest/data";
     private static AgentActivityWriterExt activityWriter;
     private static StringBuilder sbDataFile;
     private static String CSVFileName;

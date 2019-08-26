@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 
 public class AgentActivityWriterExt {
 
-    public static final String DEFAULT_AGENT_ACTIVITY_QUEUE_DIR = "/Users/oleg/Project/crocotime/cvsTest/data/agent_activity_queue";
+    public static final String DEFAULT_AGENT_ACTIVITY_QUEUE_DIR = "/Users/oleg/Project/crocotime/csvTest/data/agent_activity_queue";
     public final static ArrayList<String> SUPPORTED_DATA_VERSIONS = Stream.of("1.0.0").collect(Collectors.toCollection(ArrayList::new));
     private final static Logger log = LoggerFactory.getLogger(AgentActivityWriterExt.class);
     private Instant agentRequestUtcTime;

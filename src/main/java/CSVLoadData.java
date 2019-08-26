@@ -1,8 +1,3 @@
-import org.apache.commons.io.FileUtils;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -22,13 +17,12 @@ public class CSVLoadData {
         try {
             fileWorkerExt.forEachFile((zipFilePath, agentRequestUtcTime, dirTime) -> {
                 try {
-                    sbDataFile.append(activityWriter.write(zipFilePath, agentRequestUtcTime));
+                    sbDataFile = activityWriter.write(zipFilePath, agentRequestUtcTime);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
 
                 return new AgentActivityFileWorkerExt.ActionResult(false, false, sbDataFile);
-//                return AgentActivityFileWorkerExt.ActionResult.CONTINUE;
             });
         } catch (Exception e) {
             e.printStackTrace();
@@ -36,7 +30,6 @@ public class CSVLoadData {
 
 
     }
-
 
 
 }
